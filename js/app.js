@@ -4,6 +4,7 @@ import { TransformControls } from '../vendor/TransformControls.js';
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import { loadStepFile, makeDemoPrism, makeDemoSphere } from './loader.js';
 import { traceRays, buildRayLines, emissionDirections, wavelengthToRGB } from './tracer.js';
+import { iorAt, PRESETS, TYPE_FIELDS } from './materials.js';
 
 // Accelerated raycasting for all meshes with a bounds tree
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
@@ -80,7 +81,11 @@ function rayCountFromSlider(s) {
 
 function currentParams() {
   return {
+    lightMode: $('light-mode').value,
     wavelength: Number($('wavelength').value),
+    specMin: Number($('spec-min').value),
+    specMax: Number($('spec-max').value),
+    specSamples: Number($('spec-samples').value),
     intensity: Number($('intensity').value),
     rayCount: rayCountFromSlider(Number($('ray-count').value)),
     emissionMode: $('emission-mode').value,
@@ -88,6 +93,27 @@ function currentParams() {
     maxBounces: Number($('max-bounces').value),
     minIntensity: Number($('min-intensity').value),
   };
+}
+
+// Wavelengths to trace, one entry per spectral sample.
+function traceWavelengths(p) {
+  if (p.lightMode !== 'spectrum') return [p.wavelength];
+  const lo = Math.min(p.specMin, p.specMax);
+  const hi = Math.max(p.specMin, p.specMax);
+  const list = [];
+  for (let i = 0; i < p.specSamples; i++) {
+    list.push(lo + (hi - lo) * (p.specSamples === 1 ? 0.5 : i / (p.specSamples - 1)));
+  }
+  return list;
+}
+
+// Representative wavelength for UI hints (n(λ) readouts, glow color)
+function centerWavelength(p) {
+  return p.lightMode === 'spectrum' ? (p.specMin + p.specMax) / 2 : p.wavelength;
+}
+
+function cssColor(rgb) {
+  return `rgb(${Math.round(rgb[0] * 255)}, ${Math.round(rgb[1] * 255)}, ${Math.round(rgb[2] * 255)})`;
 }
 
 function refreshValueLabels() {
@@ -98,10 +124,28 @@ function refreshValueLabels() {
   $('cone-angle-val').textContent = p.coneAngle;
   $('max-bounces-val').textContent = p.maxBounces;
   $('min-intensity-val').textContent = p.minIntensity.toFixed(3);
-  const [r, g, b] = wavelengthToRGB(p.wavelength);
-  $('wl-swatch').style.background =
-    `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
+  $('spec-samples-val').textContent = p.specSamples;
+  $('wl-swatch').style.background = cssColor(wavelengthToRGB(p.wavelength));
   $('cone-row').style.display = p.emissionMode === 'cone' ? 'flex' : 'none';
+  $('single-wl-rows').hidden = p.lightMode !== 'single';
+  $('spectrum-rows').hidden = p.lightMode !== 'spectrum';
+  if (p.lightMode === 'spectrum') {
+    const stops = [];
+    for (let i = 0; i <= 10; i++) {
+      const wl = p.specMin + (p.specMax - p.specMin) * (i / 10);
+      stops.push(`${cssColor(wavelengthToRGB(wl))} ${i * 10}%`);
+    }
+    $('spec-swatch').style.background = `linear-gradient(to right, ${stops.join(', ')})`;
+  }
+  updateIorHints();
+}
+
+function updateIorHints() {
+  const wl = centerWavelength(currentParams());
+  for (const el of document.querySelectorAll('#object-list .n-hint')) {
+    const obj = objects.find((o) => String(o.id) === el.dataset.objId);
+    if (obj) el.textContent = `n(${Math.round(wl)} nm) = ${iorAt(obj.material, wl).toFixed(4)}`;
+  }
 }
 
 function syncLightInputs() {
@@ -144,6 +188,73 @@ function fitView() {
 
 // -------------------------------------------------------------- object list
 
+const CUSTOM_TYPES = { constant: 'Constant n', cauchy: 'Cauchy', sellmeier: 'Sellmeier' };
+
+function materialSelectValue(obj) {
+  for (const [name, preset] of Object.entries(PRESETS)) {
+    if (preset.type !== obj.material.type) continue;
+    if (TYPE_FIELDS[preset.type].every((f) => preset[f] === obj.material[f])) {
+      return 'preset:' + name;
+    }
+  }
+  return 'type:' + obj.material.type;
+}
+
+function buildMaterialUI(obj, container) {
+  container.innerHTML = '';
+
+  const select = document.createElement('select');
+  for (const [key, label] of Object.entries(CUSTOM_TYPES)) {
+    select.add(new Option(label + ' (custom)', 'type:' + key));
+  }
+  for (const name of Object.keys(PRESETS)) {
+    select.add(new Option(name, 'preset:' + name));
+  }
+  select.value = materialSelectValue(obj);
+  select.addEventListener('change', () => {
+    const [kind, value] = select.value.split(':');
+    if (kind === 'preset') {
+      obj.material = { ...PRESETS[value] };
+    } else if (value !== obj.material.type) {
+      // sensible starting coefficients when switching model type
+      if (value === 'constant') obj.material = { type: 'constant', n: 1.5 };
+      else if (value === 'cauchy') obj.material = { type: 'cauchy', A: 1.5, B: 0.005, C: 0 };
+      else obj.material = { ...PRESETS['N-BK7'] };
+    }
+    buildMaterialUI(obj, container);
+    requestTrace();
+  });
+  container.appendChild(select);
+
+  const grid = document.createElement('div');
+  grid.className = 'coef-grid';
+  for (const field of TYPE_FIELDS[obj.material.type]) {
+    const label = document.createElement('label');
+    label.textContent = field;
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.step = 'any';
+    input.value = obj.material[field];
+    input.addEventListener('change', () => {
+      obj.material[field] = Number(input.value) || 0;
+      if (obj.material.type === 'constant') {
+        obj.material.n = Math.max(1, obj.material.n);
+        input.value = obj.material.n;
+      }
+      select.value = materialSelectValue(obj); // drops back to "custom" if edited
+      requestTrace();
+    });
+    label.appendChild(input);
+    grid.appendChild(label);
+  }
+  container.appendChild(grid);
+
+  const hint = document.createElement('div');
+  hint.className = 'n-hint';
+  hint.dataset.objId = String(obj.id);
+  container.appendChild(hint);
+}
+
 function rebuildObjectList() {
   const list = $('object-list');
   list.innerHTML = '';
@@ -158,29 +269,21 @@ function rebuildObjectList() {
 
     const row = document.createElement('div');
     row.className = 'obj-row';
-
     const label = document.createElement('label');
-    label.textContent = 'IOR';
-    const ior = document.createElement('input');
-    ior.type = 'number';
-    ior.step = '0.01';
-    ior.min = '1';
-    ior.value = obj.ior;
-    ior.addEventListener('change', () => {
-      obj.ior = Math.max(1, Number(ior.value) || 1);
-      ior.value = obj.ior;
-      requestTrace();
-    });
-
+    label.textContent = 'Material';
     const del = document.createElement('button');
     del.className = 'del';
     del.textContent = 'remove';
     del.addEventListener('click', () => removeObject(obj));
+    row.append(label, del);
 
-    row.append(label, ior, del);
-    item.append(name, row);
+    const matBox = document.createElement('div');
+    buildMaterialUI(obj, matBox);
+
+    item.append(name, row, matBox);
     list.appendChild(item);
   }
+  updateIorHints();
 }
 
 function addObject(obj) {
@@ -316,32 +419,48 @@ function trace() {
   const origin = lightGroup.position.clone();
   let axis = modelsCenter().sub(origin);
   if (axis.lengthSq() < 1e-9) axis.set(-1, 0, 0);
+  // the same ray fan is traced once per wavelength, so dispersion shows up
+  // as spectral rays sharing a path until refraction separates them
   const directions = emissionDirections(p.rayCount, p.emissionMode, axis, p.coneAngle);
+  const wavelengths = traceWavelengths(p);
 
-  const result = traceRays(objects, {
-    origin,
-    directions,
-    maxBounces: p.maxBounces,
-    minIntensity: p.minIntensity,
-    maxDist: sceneDiag * 1.5,
-    eps: Math.max(sceneDiag * 1e-5, 1e-5),
-  });
+  const batches = [];
+  let totalSegments = 0;
+  let totalMs = 0;
+  let maxDepth = 0;
+  let capped = false;
+  for (const wl of wavelengths) {
+    const iors = new Map(objects.map((o) => [o, iorAt(o.material, wl)]));
+    const result = traceRays(objects, {
+      origin,
+      directions,
+      iors,
+      maxBounces: p.maxBounces,
+      minIntensity: p.minIntensity,
+      maxDist: sceneDiag * 1.5,
+      eps: Math.max(sceneDiag * 1e-5, 1e-5),
+    });
+    batches.push({ segments: result.segments, rgb: wavelengthToRGB(wl) });
+    totalSegments += result.stats.segments;
+    totalMs += result.stats.timeMs;
+    maxDepth = Math.max(maxDepth, result.stats.maxDepthReached);
+    capped = capped || result.stats.capped;
+  }
 
-  const rgb = wavelengthToRGB(p.wavelength);
-  rayLines = buildRayLines(result.segments, rgb, p.intensity);
+  rayLines = buildRayLines(batches, p.intensity);
   scene.add(rayLines);
 
+  const rgb = wavelengthToRGB(centerWavelength(p));
   glow.color.setRGB(rgb[0], rgb[1], rgb[2]);
   glow.intensity = p.intensity * sceneDiag * 0.5;
   lightMarker.material.color.setRGB(
     0.5 + rgb[0] * 0.5, 0.5 + rgb[1] * 0.5, 0.5 + rgb[2] * 0.5
   );
 
-  const s = result.stats;
   $('trace-stats').textContent =
-    `${s.raysEmitted} rays → ${s.segments.toLocaleString()} segments, ` +
-    `depth ≤ ${s.maxDepthReached}, ${s.timeMs.toFixed(0)} ms` +
-    (s.capped ? ' (segment cap hit — lower ray count or bounces)' : '');
+    `${p.rayCount}${wavelengths.length > 1 ? ` × ${wavelengths.length} λ` : ''} rays → ` +
+    `${totalSegments.toLocaleString()} segments, depth ≤ ${maxDepth}, ${totalMs.toFixed(0)} ms` +
+    (capped ? ' (segment cap hit — lower ray count or bounces)' : '');
 }
 
 let traceTimer = null;
@@ -394,10 +513,12 @@ $('light-gizmo').addEventListener('change', () => {
   gizmo.enabled = $('light-gizmo').checked;
 });
 
-for (const id of ['wavelength', 'intensity', 'ray-count', 'cone-angle', 'max-bounces', 'min-intensity']) {
+for (const id of ['wavelength', 'intensity', 'ray-count', 'cone-angle', 'max-bounces', 'min-intensity', 'spec-samples']) {
   $(id).addEventListener('input', requestTrace);
 }
-$('emission-mode').addEventListener('change', requestTrace);
+for (const id of ['emission-mode', 'light-mode', 'spec-min', 'spec-max']) {
+  $(id).addEventListener('change', requestTrace);
+}
 $('btn-trace').addEventListener('click', () => { refreshValueLabels(); trace(); });
 $('btn-clear-rays').addEventListener('click', clearRays);
 $('btn-fit').addEventListener('click', fitView);

@@ -60,10 +60,20 @@ select {
 .check input { accent-color: #2d7ab8; }
 
 .swatch-row { font-size: 12px; color: #a8b8c8; margin: 4px 0; display: flex; align-items: center; gap: 8px; }
-#wl-swatch {
+#wl-swatch, #spec-swatch {
   display: inline-block; width: 40px; height: 14px; border-radius: 3px;
   border: 1px solid #3c4a5a; background: rgb(163, 255, 0);
 }
+#spec-swatch { width: 120px; }
+input.nm { width: 62px !important; }
+
+.coef-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 4px;
+}
+.coef-grid label { font-size: 10px; color: #8fa3b8; display: block; }
+.coef-grid input { width: 100%; font-size: 11px; }
+.n-hint { font-size: 11px; color: #7fb08a; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.obj-item select { width: 100%; margin-top: 2px; }
 
 .muted { color: #6c7c8c; font-size: 12px; }
 .small { font-size: 11px; margin-top: 6px; line-height: 1.5; }

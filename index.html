@@ -56,11 +56,34 @@
     </div>
     <label class="check"><input type="checkbox" id="light-gizmo" checked> Show drag gizmo</label>
     <div class="slider-row">
-      <span>Wavelength</span>
-      <input type="range" id="wavelength" min="380" max="750" step="1" value="550">
-      <span class="val"><span id="wavelength-val">550</span> nm</span>
+      <span>Light mode</span>
+      <select id="light-mode">
+        <option value="single" selected>Single wavelength</option>
+        <option value="spectrum">Spectrum (dispersion)</option>
+      </select>
     </div>
-    <div class="swatch-row">Ray color: <span id="wl-swatch"></span></div>
+    <div id="single-wl-rows">
+      <div class="slider-row">
+        <span>Wavelength</span>
+        <input type="range" id="wavelength" min="380" max="750" step="1" value="550">
+        <span class="val"><span id="wavelength-val">550</span> nm</span>
+      </div>
+      <div class="swatch-row">Ray color: <span id="wl-swatch"></span></div>
+    </div>
+    <div id="spectrum-rows" hidden>
+      <div class="slider-row">
+        <span>Range (nm)</span>
+        <input type="number" id="spec-min" min="380" max="750" step="5" value="400" class="nm">
+        <span>–</span>
+        <input type="number" id="spec-max" min="380" max="750" step="5" value="700" class="nm">
+      </div>
+      <div class="slider-row">
+        <span>Samples</span>
+        <input type="range" id="spec-samples" min="2" max="24" step="1" value="10">
+        <span id="spec-samples-val" class="val">10</span>
+      </div>
+      <div class="swatch-row">Spectrum: <span id="spec-swatch"></span></div>
+    </div>
     <div class="slider-row">
       <span>Intensity</span>
       <input type="range" id="intensity" min="0.05" max="4" step="0.05" value="1">

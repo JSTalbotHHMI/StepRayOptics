@@ -1,10 +1,11 @@
 // STEP file loading (via occt-import-js WASM) and demo geometry construction.
 // Every loaded model becomes a SceneObject:
-//   { id, name, mesh, ior, faces: [{ first, last, reflectivity }] }
+//   { id, name, mesh, material, faces: [{ first, last, reflectivity }] }
 // `faces` holds inclusive triangle-index ranges for each B-rep surface;
 // reflectivity === null means "use Fresnel equations".
 
 import * as THREE from 'three';
+import { defaultMaterial } from './materials.js';
 
 let occtPromise = null;
 
@@ -34,7 +35,7 @@ export function makeObjectMaterial() {
 function buildSceneObject(name, geometry, faces) {
   geometry.computeBoundsTree();
   const mesh = new THREE.Mesh(geometry, makeObjectMaterial());
-  const obj = { id: nextId++, name, mesh, ior: 1.5, faces };
+  const obj = { id: nextId++, name, mesh, material: defaultMaterial(), faces };
   mesh.userData.sceneObject = obj;
   return obj;
 }

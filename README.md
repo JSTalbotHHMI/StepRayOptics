@@ -19,14 +19,22 @@ this folder. A server is required — browsers won't load WASM/ES modules from `
 ## Features
 
 - **Import multiple STEP files** (`.step`/`.stp`) into one scene. Each file gets its own
-  index of refraction, editable in the Models list. Two demo shapes (dispersing prism,
-  ball lens) are built in for quick experiments.
+  material, editable in the Models list. Two demo shapes (dispersing prism, ball lens)
+  are built in for quick experiments.
+- **Dispersive materials** — each model's index of refraction can be a constant, a
+  **Cauchy** model (n = A + B/λ² + C/λ⁴), or a full **Sellmeier** model. Presets are
+  included for N-BK7, fused silica, sapphire, N-SF11 flint, water, PMMA, and
+  polycarbonate; all coefficients are editable, and the list shows the resulting n(λ)
+  at the current wavelength.
 - **Per-surface reflectivity** — click any surface in the 3D view to select it
   (STEP B-rep faces are preserved, so you select true CAD surfaces, not triangles).
   By default each surface uses the exact unpolarized **Fresnel equations**; uncheck
   "Auto" to set a fixed reflectivity 0–1 (1.0 = perfect mirror, no transmission).
 - **Point light source** — drag it with the gizmo or type XYZ coordinates. Control:
-  - **Wavelength** (380–750 nm) — sets the rendered ray color
+  - **Light mode** — a single wavelength (380–750 nm), or a **spectrum**: pick a
+    wavelength range and sample count, and the same ray fan is traced once per
+    wavelength with each model's n(λ). Spectral rays share a path until refraction
+    separates them, so dispersive glass produces real rainbows.
   - **Intensity** — brightness scaling of the rays
   - **Ray count** (10–20,000, log slider) — rays are distributed evenly
     (Fibonacci spiral) over a full sphere or over a cone aimed at the models
@@ -43,9 +51,8 @@ this folder. A server is required — browsers won't load WASM/ES modules from `
 - Whether a ray is entering or leaving a solid is decided by the surface normal
   direction at the hit point, so STEP solids must be closed and consistently oriented
   (normal CAD exports are).
-- Wavelength currently affects only the displayed color — dispersion is not modeled
-  (IOR is a single number per model). To see prism dispersion, trace once per
-  wavelength with the IOR adjusted manually.
+- Fresnel reflectance and Snell refraction both use the wavelength-dependent n(λ),
+  so chromatic effects (dispersion, chromatic aberration of lenses) are physical.
 - Overlapping/nested solids are not tracked as a medium stack; keep solids disjoint
   for physically meaningful results.
 
@@ -56,6 +63,7 @@ index.html          UI layout
 style.css           styling
 js/app.js           scene, camera, controls, UI wiring
 js/tracer.js        ray-tracing core (Snell, Fresnel, TIR, emission patterns)
+js/materials.js     dispersion models (constant/Cauchy/Sellmeier) + glass presets
 js/loader.js        STEP import (occt-import-js) + demo geometry
 vendor/             three.js, three-mesh-bvh, occt-import-js (WASM) — offline copies
 samples/            example STEP files for testing

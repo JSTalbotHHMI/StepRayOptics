@@ -80,13 +80,15 @@ function fresnelR(n1, n2, cosI, cosT) {
 }
 
 /**
- * @param objects  array of SceneObjects ({ mesh, ior, faces })
- * @param params   { origin, directions, maxBounces, minIntensity, maxDist, eps }
- * @returns { segments: [{ax,ay,az,bx,by,bz,energy}], stats }
+ * @param objects  array of SceneObjects ({ mesh, material, faces })
+ * @param params   { origin, directions, maxBounces, minIntensity, maxDist, eps, iors }
+ *                 `iors` is a Map<SceneObject, number> giving each object's index
+ *                 of refraction at the wavelength being traced.
+ * @returns { segments: [{a,b,energy}], stats }
  */
 export function traceRays(objects, params) {
   const t0 = performance.now();
-  const { origin, directions, maxBounces, minIntensity, maxDist, eps } = params;
+  const { origin, directions, maxBounces, minIntensity, maxDist, eps, iors } = params;
 
   const meshes = objects.map((o) => o.mesh);
   const raycaster = new THREE.Raycaster();
@@ -135,15 +137,16 @@ export function traceRays(objects, params) {
     worldNormal.copy(hit.face.normal).applyMatrix3(normalMatrix).normalize();
 
     // orient the normal against the incoming ray; pick media accordingly
+    const objIor = iors.get(obj);
     let n1 = 1.0;
-    let n2 = obj.ior;
+    let n2 = objIor;
     const n = worldNormal.clone();
     let cosI = -ray.dir.dot(n);
     if (cosI < 0) {
       // hit from the inside: leaving the material
       n.negate();
       cosI = -cosI;
-      n1 = obj.ior;
+      n1 = objIor;
       n2 = 1.0;
     }
 
@@ -184,23 +187,30 @@ export function traceRays(objects, params) {
   };
 }
 
-// Build a LineSegments object from traced segments.
-export function buildRayLines(segments, rgb, intensity) {
-  const positions = new Float32Array(segments.length * 6);
-  const colors = new Float32Array(segments.length * 6);
-  for (let i = 0; i < segments.length; i++) {
-    const s = segments[i];
-    positions[i * 6 + 0] = s.a.x;
-    positions[i * 6 + 1] = s.a.y;
-    positions[i * 6 + 2] = s.a.z;
-    positions[i * 6 + 3] = s.b.x;
-    positions[i * 6 + 4] = s.b.y;
-    positions[i * 6 + 5] = s.b.z;
-    const w = Math.min(1, s.energy * intensity);
-    for (const off of [0, 3]) {
-      colors[i * 6 + off + 0] = rgb[0] * w;
-      colors[i * 6 + off + 1] = rgb[1] * w;
-      colors[i * 6 + off + 2] = rgb[2] * w;
+// Build one LineSegments object from traced segment batches, one batch per
+// wavelength: [{ segments, rgb }, ...]. Batches blend additively, so where
+// spectral rays overlap (before dispersion separates them) they sum to white.
+export function buildRayLines(batches, intensity) {
+  let total = 0;
+  for (const b of batches) total += b.segments.length;
+  const positions = new Float32Array(total * 6);
+  const colors = new Float32Array(total * 6);
+  let i = 0;
+  for (const { segments, rgb } of batches) {
+    for (const s of segments) {
+      positions[i * 6 + 0] = s.a.x;
+      positions[i * 6 + 1] = s.a.y;
+      positions[i * 6 + 2] = s.a.z;
+      positions[i * 6 + 3] = s.b.x;
+      positions[i * 6 + 4] = s.b.y;
+      positions[i * 6 + 5] = s.b.z;
+      const w = Math.min(1, s.energy * intensity);
+      for (const off of [0, 3]) {
+        colors[i * 6 + off + 0] = rgb[0] * w;
+        colors[i * 6 + off + 1] = rgb[1] * w;
+        colors[i * 6 + off + 2] = rgb[2] * w;
+      }
+      i++;
     }
   }
   const geometry = new THREE.BufferGeometry();
