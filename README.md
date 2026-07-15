@@ -21,6 +21,9 @@ this folder. A server is required — browsers won't load WASM/ES modules from `
 - **Import multiple STEP files** (`.step`/`.stp`) into one scene. Each file gets its own
   material, editable in the Models list. Two demo shapes (dispersing prism, ball lens)
   are built in for quick experiments.
+- **Position models freely** — every model has Move / Rotate / Scale buttons that attach
+  a drag gizmo in the viewport (click again to dismiss, Reset restores the original
+  placement). Ray physics and surface picking follow the transform.
 - **Dispersive materials** — each model's index of refraction can be a constant, a
   **Cauchy** model (n = A + B/λ² + C/λ⁴), or a full **Sellmeier** model. Presets are
   included for N-BK7, fused silica, sapphire, N-SF11 flint, water, PMMA, and
@@ -47,7 +50,8 @@ this folder. A server is required — browsers won't load WASM/ES modules from `
   internal reflection is handled. Branch energy falls off with each split, and rays
   dimmer than the cutoff are dropped.
 - **View** — left-drag orbit, right-drag pan, scroll zoom, Fit View button,
-  grid/model visibility toggles.
+  grid/model visibility toggles, and a "Show control widgets" toggle that hides all
+  drag gizmos and markers for a clean screenshot-ready view.
 
 ## Physics notes
 

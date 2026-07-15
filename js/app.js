@@ -84,12 +84,45 @@ aimGizmo.addEventListener('objectChange', () => {
   requestTrace();
 });
 
-function updateAimVisibility() {
+// per-object transform gizmo (translate / rotate / scale), one object at a time
+const objGizmo = new TransformControls(camera, renderer.domElement);
+objGizmo.setSize(0.9);
+scene.add(objGizmo);
+objGizmo.addEventListener('dragging-changed', (e) => { orbit.enabled = !e.value; });
+objGizmo.addEventListener('objectChange', () => {
+  syncHighlightMatrix();
+  requestTrace();
+});
+let transformObj = null; // SceneObject the gizmo is attached to
+
+function setTransformMode(obj, mode) {
+  if (transformObj === obj && objGizmo.mode === mode) {
+    objGizmo.detach();
+    transformObj = null;
+  } else {
+    transformObj = obj;
+    objGizmo.setMode(mode);
+    objGizmo.attach(obj.mesh);
+  }
+  rebuildObjectList();
+  updateWidgetVisibility();
+}
+
+// single place that decides which control widgets are visible; the master
+// "Show control widgets" toggle overrides the individual checkboxes
+function updateWidgetVisibility() {
+  const master = $('show-widgets').checked;
+  const lightOn = master && $('light-gizmo').checked;
+  gizmo.visible = lightOn;
+  gizmo.enabled = lightOn;
   const custom = $('emission-mode').value === 'custom';
-  const showGizmo = custom && $('aim-gizmo').checked;
-  aimTarget.visible = custom;
-  aimGizmo.visible = showGizmo;
-  aimGizmo.enabled = showGizmo;
+  aimTarget.visible = master && custom;
+  const aimOn = master && custom && $('aim-gizmo').checked;
+  aimGizmo.visible = aimOn;
+  aimGizmo.enabled = aimOn;
+  const objOn = master && transformObj !== null;
+  objGizmo.visible = objOn;
+  objGizmo.enabled = objOn;
 }
 
 // ------------------------------------------------------------------- state
@@ -154,7 +187,7 @@ function refreshValueLabels() {
   $('wl-swatch').style.background = cssColor(wavelengthToRGB(p.wavelength));
   $('cone-row').style.display = p.emissionMode !== 'sphere' ? 'flex' : 'none';
   $('aim-rows').hidden = p.emissionMode !== 'custom';
-  updateAimVisibility();
+  updateWidgetVisibility();
   $('single-wl-rows').hidden = p.lightMode !== 'single';
   $('spectrum-rows').hidden = p.lightMode !== 'spectrum';
   if (p.lightMode === 'spectrum') {
@@ -315,7 +348,30 @@ function rebuildObjectList() {
     const matBox = document.createElement('div');
     buildMaterialUI(obj, matBox);
 
-    item.append(name, row, matBox);
+    const xf = document.createElement('div');
+    xf.className = 'xform-row';
+    for (const [mode, text] of [['translate', 'Move'], ['rotate', 'Rotate'], ['scale', 'Scale']]) {
+      const b = document.createElement('button');
+      b.textContent = text;
+      b.title = `Toggle ${text.toLowerCase()} gizmo for ${obj.name}`;
+      if (transformObj === obj && objGizmo.mode === mode) b.classList.add('active');
+      b.addEventListener('click', () => setTransformMode(obj, mode));
+      xf.appendChild(b);
+    }
+    const reset = document.createElement('button');
+    reset.textContent = 'Reset';
+    reset.title = 'Reset position, rotation, and scale';
+    reset.addEventListener('click', () => {
+      obj.mesh.position.set(0, 0, 0);
+      obj.mesh.rotation.set(0, 0, 0);
+      obj.mesh.scale.set(1, 1, 1);
+      syncHighlightMatrix();
+      updateSceneScale();
+      requestTrace();
+    });
+    xf.appendChild(reset);
+
+    item.append(name, row, matBox, xf);
     list.appendChild(item);
   }
   updateIorHints();
@@ -332,6 +388,10 @@ function addObject(obj) {
 function removeObject(obj) {
   const i = objects.indexOf(obj);
   if (i >= 0) objects.splice(i, 1);
+  if (transformObj === obj) {
+    objGizmo.detach();
+    transformObj = null;
+  }
   scene.remove(obj.mesh);
   obj.mesh.geometry.disposeBoundsTree();
   obj.mesh.geometry.dispose();
@@ -342,6 +402,13 @@ function removeObject(obj) {
 }
 
 // ------------------------------------------------------------ face selection
+
+// keep the face highlight glued to its model when the model is transformed
+function syncHighlightMatrix() {
+  if (!highlightMesh || !selected) return;
+  selected.obj.mesh.updateMatrixWorld();
+  highlightMesh.matrix.copy(selected.obj.mesh.matrixWorld);
+}
 
 function clearSelection() {
   selected = null;
@@ -373,8 +440,9 @@ function selectFace(obj, faceIndex) {
     polygonOffset: true,
     polygonOffsetFactor: -2,
   }));
-  highlightMesh.applyMatrix4(obj.mesh.matrixWorld);
+  highlightMesh.matrixAutoUpdate = false;
   scene.add(highlightMesh);
+  syncHighlightMatrix();
 
   const idx = obj.faces.indexOf(face);
   $('face-info').textContent =
@@ -400,6 +468,7 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   if (moved > 5) return;
   if (gizmo.dragging || gizmo.axis) return;       // interacting with the light gizmo
   if (aimGizmo.dragging || aimGizmo.axis) return; // interacting with the aim gizmo
+  if (objGizmo.dragging || objGizmo.axis) return; // interacting with the object gizmo
 
   const rect = renderer.domElement.getBoundingClientRect();
   const ndc = new THREE.Vector2(
@@ -552,10 +621,8 @@ for (const id of ['light-x', 'light-y', 'light-z']) {
     requestTrace();
   });
 }
-$('light-gizmo').addEventListener('change', () => {
-  gizmo.visible = $('light-gizmo').checked;
-  gizmo.enabled = $('light-gizmo').checked;
-});
+$('light-gizmo').addEventListener('change', updateWidgetVisibility);
+$('show-widgets').addEventListener('change', updateWidgetVisibility);
 
 for (const id of ['aim-x', 'aim-y', 'aim-z']) {
   $(id).addEventListener('change', () => {
@@ -565,7 +632,7 @@ for (const id of ['aim-x', 'aim-y', 'aim-z']) {
     requestTrace();
   });
 }
-$('aim-gizmo').addEventListener('change', updateAimVisibility);
+$('aim-gizmo').addEventListener('change', updateWidgetVisibility);
 
 for (const id of ['wavelength', 'ray-count', 'cone-angle', 'max-bounces', 'min-intensity', 'spec-samples']) {
   $(id).addEventListener('input', requestTrace);

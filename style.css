@@ -96,6 +96,9 @@ input.val-input { width: 62px; text-align: right; font-variant-numeric: tabular-
   padding: 2px 8px; font-size: 11px; margin-left: auto;
   background: #3a2530; border-color: #5a3545;
 }
+.xform-row { display: flex; gap: 4px; margin: 6px 0 2px; }
+.xform-row button { flex: 1; font-size: 11px; padding: 3px 2px; }
+.xform-row button.active { background: #2d7ab8; border-color: #5aa0d8; }
 .obj-item button.del:hover { background: #4d2f3e; }
 
 #trace-stats { margin-top: 8px; font-variant-numeric: tabular-nums; }
