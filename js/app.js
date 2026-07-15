@@ -86,7 +86,7 @@ function currentParams() {
     specMin: Number($('spec-min').value),
     specMax: Number($('spec-max').value),
     specSamples: Number($('spec-samples').value),
-    intensity: Number($('intensity').value),
+    intensity: Math.max(0, Number($('intensity-num').value) || 0),
     rayCount: rayCountFromSlider(Number($('ray-count').value)),
     emissionMode: $('emission-mode').value,
     coneAngle: Number($('cone-angle').value),
@@ -119,7 +119,6 @@ function cssColor(rgb) {
 function refreshValueLabels() {
   const p = currentParams();
   $('wavelength-val').textContent = p.wavelength;
-  $('intensity-val').textContent = p.intensity.toFixed(2);
   $('ray-count-val').textContent = p.rayCount;
   $('cone-angle-val').textContent = p.coneAngle;
   $('max-bounces-val').textContent = p.maxBounces;
@@ -513,9 +512,21 @@ $('light-gizmo').addEventListener('change', () => {
   gizmo.enabled = $('light-gizmo').checked;
 });
 
-for (const id of ['wavelength', 'intensity', 'ray-count', 'cone-angle', 'max-bounces', 'min-intensity', 'spec-samples']) {
+for (const id of ['wavelength', 'ray-count', 'cone-angle', 'max-bounces', 'min-intensity', 'spec-samples']) {
   $(id).addEventListener('input', requestTrace);
 }
+// intensity: slider and text box stay in sync; the box accepts values beyond
+// the slider's range
+$('intensity').addEventListener('input', () => {
+  $('intensity-num').value = Number($('intensity').value).toFixed(2);
+  requestTrace();
+});
+$('intensity-num').addEventListener('change', () => {
+  const v = Math.max(0, Number($('intensity-num').value) || 0);
+  $('intensity-num').value = v;
+  $('intensity').value = v; // clamps itself to the slider range
+  requestTrace();
+});
 for (const id of ['emission-mode', 'light-mode', 'spec-min', 'spec-max']) {
   $(id).addEventListener('change', requestTrace);
 }

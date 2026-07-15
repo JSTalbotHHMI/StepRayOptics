@@ -66,6 +66,7 @@ select {
 }
 #spec-swatch { width: 120px; }
 input.nm { width: 62px !important; }
+input.val-input { width: 62px; text-align: right; font-variant-numeric: tabular-nums; }
 
 .coef-grid {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 4px;
