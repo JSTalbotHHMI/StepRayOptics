@@ -33,7 +33,10 @@ export function makeObjectMaterial() {
 }
 
 function buildSceneObject(name, geometry, faces) {
-  geometry.computeBoundsTree();
+  // indirect: the BVH must NOT reorder the index buffer in place (the default),
+  // because `faces` holds B-rep surface ranges over the original triangle order
+  // and both picking and per-face reflectivity depend on it
+  geometry.computeBoundsTree({ indirect: true });
   const mesh = new THREE.Mesh(geometry, makeObjectMaterial());
   const obj = { id: nextId++, name, mesh, material: defaultMaterial(), faces };
   mesh.userData.sceneObject = obj;
