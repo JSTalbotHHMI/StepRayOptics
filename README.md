@@ -55,7 +55,9 @@ this folder. A server is required — browsers won't load WASM/ES modules from `
 
 ## Physics notes
 
-- Media are treated as non-absorbing dielectrics; the space outside models is air (n = 1).
+- Media are treated as non-absorbing dielectrics. The space outside the models
+  defaults to n = 1 (air/vacuum) but is adjustable via "Surrounding n" in the
+  Tracing section (e.g. 1.33 to immerse the system in water).
 - Whether a ray is entering or leaving a solid is decided by the surface normal
   direction at the hit point, so STEP solids must be closed and consistently oriented
   (normal CAD exports are).

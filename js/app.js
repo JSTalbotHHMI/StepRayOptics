@@ -152,6 +152,7 @@ function currentParams() {
     coneAngle: Number($('cone-angle').value),
     maxBounces: Number($('max-bounces').value),
     minIntensity: Number($('min-intensity').value),
+    ambientIor: Math.max(1, Number($('ambient-ior').value) || 1),
   };
 }
 
@@ -542,6 +543,7 @@ function trace() {
       origin,
       directions,
       iors,
+      ambientIor: p.ambientIor,
       maxBounces: p.maxBounces,
       minIntensity: p.minIntensity,
       maxDist: sceneDiag * 1.5,
@@ -649,7 +651,7 @@ $('intensity-num').addEventListener('change', () => {
   $('intensity').value = v; // clamps itself to the slider range
   requestTrace();
 });
-for (const id of ['emission-mode', 'light-mode', 'spec-min', 'spec-max']) {
+for (const id of ['emission-mode', 'light-mode', 'spec-min', 'spec-max', 'ambient-ior']) {
   $(id).addEventListener('change', requestTrace);
 }
 $('btn-trace').addEventListener('click', () => { refreshValueLabels(); trace(); });

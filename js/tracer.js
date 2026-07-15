@@ -81,14 +81,16 @@ function fresnelR(n1, n2, cosI, cosT) {
 
 /**
  * @param objects  array of SceneObjects ({ mesh, material, faces })
- * @param params   { origin, directions, maxBounces, minIntensity, maxDist, eps, iors }
+ * @param params   { origin, directions, maxBounces, minIntensity, maxDist, eps, iors, ambientIor }
  *                 `iors` is a Map<SceneObject, number> giving each object's index
- *                 of refraction at the wavelength being traced.
+ *                 of refraction at the wavelength being traced. `ambientIor` is
+ *                 the index of the medium surrounding the models (default 1).
  * @returns { segments: [{a,b,energy}], stats }
  */
 export function traceRays(objects, params) {
   const t0 = performance.now();
   const { origin, directions, maxBounces, minIntensity, maxDist, eps, iors } = params;
+  const ambientIor = params.ambientIor ?? 1.0;
 
   const meshes = objects.map((o) => o.mesh);
   const raycaster = new THREE.Raycaster();
@@ -138,7 +140,7 @@ export function traceRays(objects, params) {
 
     // orient the normal against the incoming ray; pick media accordingly
     const objIor = iors.get(obj);
-    let n1 = 1.0;
+    let n1 = ambientIor;
     let n2 = objIor;
     const n = worldNormal.clone();
     let cosI = -ray.dir.dot(n);
@@ -147,7 +149,7 @@ export function traceRays(objects, params) {
       n.negate();
       cosI = -cosI;
       n1 = objIor;
-      n2 = 1.0;
+      n2 = ambientIor;
     }
 
     const eta = n1 / n2;
