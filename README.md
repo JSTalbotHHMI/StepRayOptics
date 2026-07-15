@@ -35,7 +35,9 @@ this folder. A server is required — browsers won't load WASM/ES modules from `
     wavelength range and sample count, and the same ray fan is traced once per
     wavelength with each model's n(λ). Spectral rays share a path until refraction
     separates them, so dispersive glass produces real rainbows.
-  - **Intensity** — brightness scaling of the rays
+  - **Intensity** — the source's total power output. It is divided evenly across
+    all emitted rays (and spectral samples), so raising the ray count dims each
+    individual ray while the total light in the scene stays constant.
   - **Ray count** (10–20,000, log slider) — rays are distributed evenly
     (Fibonacci spiral) over a full sphere or over a cone. The cone can aim
     automatically at the models, or at a custom aim point set by XYZ inputs or by

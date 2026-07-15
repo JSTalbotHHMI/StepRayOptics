@@ -190,7 +190,9 @@ export function traceRays(objects, params) {
 // Build one LineSegments object from traced segment batches, one batch per
 // wavelength: [{ segments, rgb }, ...]. Batches blend additively, so where
 // spectral rays overlap (before dispersion separates them) they sum to white.
-export function buildRayLines(batches, intensity) {
+// `gain` converts a ray's relative energy to screen brightness — the caller
+// derives it from source power / ray count so brightness is power-conserving.
+export function buildRayLines(batches, gain) {
   let total = 0;
   for (const b of batches) total += b.segments.length;
   const positions = new Float32Array(total * 6);
@@ -204,7 +206,7 @@ export function buildRayLines(batches, intensity) {
       positions[i * 6 + 3] = s.b.x;
       positions[i * 6 + 4] = s.b.y;
       positions[i * 6 + 5] = s.b.z;
-      const w = Math.min(1, s.energy * intensity);
+      const w = Math.min(1, s.energy * gain);
       for (const off of [0, 3]) {
         colors[i * 6 + off + 0] = rgb[0] * w;
         colors[i * 6 + off + 1] = rgb[1] * w;

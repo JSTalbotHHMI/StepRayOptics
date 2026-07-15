@@ -485,7 +485,13 @@ function trace() {
     capped = capped || result.stats.capped;
   }
 
-  rayLines = buildRayLines(batches, p.intensity);
+  // intensity is the source's total power output: it is split evenly across
+  // all emitted rays and spectral samples, so raising the ray count makes each
+  // ray dimmer and the total light in the scene stays constant. The reference
+  // constant puts a 500-ray, power-1 trace at comfortable screen brightness.
+  const REFERENCE_RAYS = 500;
+  const gain = (p.intensity * REFERENCE_RAYS) / (p.rayCount * wavelengths.length);
+  rayLines = buildRayLines(batches, gain);
   scene.add(rayLines);
 
   const rgb = wavelengthToRGB(centerWavelength(p));
