@@ -37,7 +37,9 @@ this folder. A server is required — browsers won't load WASM/ES modules from `
     separates them, so dispersive glass produces real rainbows.
   - **Intensity** — brightness scaling of the rays
   - **Ray count** (10–20,000, log slider) — rays are distributed evenly
-    (Fibonacci spiral) over a full sphere or over a cone aimed at the models
+    (Fibonacci spiral) over a full sphere or over a cone. The cone can aim
+    automatically at the models, or at a custom aim point set by XYZ inputs or by
+    dragging the orange aim marker (the cone keeps pointing at it as the light moves)
 - **Tracing controls** — max bounces and a minimum-intensity cutoff. At every surface
   hit the ray splits into a reflected and refracted branch per Snell's law; total
   internal reflection is handled. Branch energy falls off with each split, and rays

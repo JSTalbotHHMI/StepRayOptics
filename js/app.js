@@ -65,6 +65,33 @@ gizmo.addEventListener('objectChange', () => {
   requestTrace();
 });
 
+// aim target for the custom-direction cone: the cone always points from the
+// light toward this marker (like a spotlight target)
+const aimTarget = new THREE.Mesh(
+  new THREE.OctahedronGeometry(1),
+  new THREE.MeshBasicMaterial({ color: 0xff8844, wireframe: true })
+);
+aimTarget.position.set(0, 0, 0);
+scene.add(aimTarget);
+
+const aimGizmo = new TransformControls(camera, renderer.domElement);
+aimGizmo.attach(aimTarget);
+aimGizmo.setSize(0.6);
+scene.add(aimGizmo);
+aimGizmo.addEventListener('dragging-changed', (e) => { orbit.enabled = !e.value; });
+aimGizmo.addEventListener('objectChange', () => {
+  syncAimInputs();
+  requestTrace();
+});
+
+function updateAimVisibility() {
+  const custom = $('emission-mode').value === 'custom';
+  const showGizmo = custom && $('aim-gizmo').checked;
+  aimTarget.visible = custom;
+  aimGizmo.visible = showGizmo;
+  aimGizmo.enabled = showGizmo;
+}
+
 // ------------------------------------------------------------------- state
 
 const objects = [];        // SceneObjects from loader.js
@@ -125,7 +152,9 @@ function refreshValueLabels() {
   $('min-intensity-val').textContent = p.minIntensity.toFixed(3);
   $('spec-samples-val').textContent = p.specSamples;
   $('wl-swatch').style.background = cssColor(wavelengthToRGB(p.wavelength));
-  $('cone-row').style.display = p.emissionMode === 'cone' ? 'flex' : 'none';
+  $('cone-row').style.display = p.emissionMode !== 'sphere' ? 'flex' : 'none';
+  $('aim-rows').hidden = p.emissionMode !== 'custom';
+  updateAimVisibility();
   $('single-wl-rows').hidden = p.lightMode !== 'single';
   $('spectrum-rows').hidden = p.lightMode !== 'spectrum';
   if (p.lightMode === 'spectrum') {
@@ -153,6 +182,12 @@ function syncLightInputs() {
   $('light-z').value = lightGroup.position.z.toFixed(1);
 }
 
+function syncAimInputs() {
+  $('aim-x').value = aimTarget.position.x.toFixed(1);
+  $('aim-y').value = aimTarget.position.y.toFixed(1);
+  $('aim-z').value = aimTarget.position.z.toFixed(1);
+}
+
 function modelsCenter() {
   if (objects.length === 0) return new THREE.Vector3(0, 0, 0);
   const box = new THREE.Box3();
@@ -170,6 +205,7 @@ function updateSceneScale() {
     sceneDiag = Math.max(box.getSize(new THREE.Vector3()).length(), 10);
   }
   lightMarker.scale.setScalar(Math.max(sceneDiag * 0.008, 0.3));
+  aimTarget.scale.setScalar(Math.max(sceneDiag * 0.012, 0.4));
 }
 
 function fitView() {
@@ -362,7 +398,8 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   const moved = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
   downPos = null;
   if (moved > 5) return;
-  if (gizmo.dragging || gizmo.axis) return; // interacting with the light gizmo
+  if (gizmo.dragging || gizmo.axis) return;       // interacting with the light gizmo
+  if (aimGizmo.dragging || aimGizmo.axis) return; // interacting with the aim gizmo
 
   const rect = renderer.domElement.getBoundingClientRect();
   const ndc = new THREE.Vector2(
@@ -416,7 +453,9 @@ function trace() {
   updateSceneScale();
 
   const origin = lightGroup.position.clone();
-  let axis = modelsCenter().sub(origin);
+  let axis = p.emissionMode === 'custom'
+    ? aimTarget.position.clone().sub(origin)
+    : modelsCenter().sub(origin);
   if (axis.lengthSq() < 1e-9) axis.set(-1, 0, 0);
   // the same ray fan is traced once per wavelength, so dispersion shows up
   // as spectral rays sharing a path until refraction separates them
@@ -512,6 +551,16 @@ $('light-gizmo').addEventListener('change', () => {
   gizmo.enabled = $('light-gizmo').checked;
 });
 
+for (const id of ['aim-x', 'aim-y', 'aim-z']) {
+  $(id).addEventListener('change', () => {
+    aimTarget.position.set(
+      Number($('aim-x').value), Number($('aim-y').value), Number($('aim-z').value)
+    );
+    requestTrace();
+  });
+}
+$('aim-gizmo').addEventListener('change', updateAimVisibility);
+
 for (const id of ['wavelength', 'ray-count', 'cone-angle', 'max-bounces', 'min-intensity', 'spec-samples']) {
   $(id).addEventListener('input', requestTrace);
 }
@@ -550,10 +599,11 @@ window.addEventListener('resize', () => {
 // ------------------------------------------------------------------- start
 
 syncLightInputs();
+syncAimInputs();
 refreshValueLabels();
 
 // console/testing hook
-window.__sro = { scene, camera, objects, selectFace, trace, lightGroup };
+window.__sro = { scene, camera, objects, selectFace, trace, lightGroup, aimTarget };
 
 (function animate() {
   requestAnimationFrame(animate);

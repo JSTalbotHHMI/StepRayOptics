@@ -36,9 +36,9 @@ export function wavelengthToRGB(wl) {
 // full sphere or over a spherical cap of half-angle `coneAngle` around `axis`.
 export function emissionDirections(count, mode, axis, coneAngleDeg) {
   const dirs = [];
-  const cosCap = mode === 'cone'
-    ? Math.cos(THREE.MathUtils.degToRad(coneAngleDeg))
-    : -1;
+  const cosCap = mode === 'sphere'
+    ? -1 // full sphere
+    : Math.cos(THREE.MathUtils.degToRad(coneAngleDeg));
 
   // orthonormal basis around the axis
   const w = axis.clone().normalize();

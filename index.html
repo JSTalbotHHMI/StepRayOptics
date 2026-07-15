@@ -99,12 +99,21 @@
       <select id="emission-mode">
         <option value="sphere">Full sphere</option>
         <option value="cone" selected>Cone (aimed at models)</option>
+        <option value="custom">Cone (custom aim)</option>
       </select>
     </div>
     <div class="slider-row" id="cone-row">
       <span>Cone angle</span>
       <input type="range" id="cone-angle" min="1" max="90" step="1" value="20">
       <span class="val"><span id="cone-angle-val">20</span>°</span>
+    </div>
+    <div id="aim-rows" hidden>
+      <div class="xyz-row">
+        <label>Aim X <input type="number" id="aim-x" step="1" value="0"></label>
+        <label>Aim Y <input type="number" id="aim-y" step="1" value="0"></label>
+        <label>Aim Z <input type="number" id="aim-z" step="1" value="0"></label>
+      </div>
+      <label class="check"><input type="checkbox" id="aim-gizmo" checked> Show aim gizmo</label>
     </div>
   </div>
 
