@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StepRayOptics — STEP Ray Tracing Sandbox</title>
+<link rel="stylesheet" href="style.css">
+<script src="vendor/occt-import-js.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js",
+    "three-mesh-bvh": "./vendor/three-mesh-bvh.module.js"
+  }
+}
+</script>
+</head>
+<body>
+<div id="sidebar">
+  <h1>StepRayOptics</h1>
+
+  <div class="section">
+    <h2>Models</h2>
+    <div class="row">
+      <button id="btn-import" class="primary">Import STEP…</button>
+      <input type="file" id="file-input" accept=".step,.stp,.STEP,.STP" multiple hidden>
+    </div>
+    <div class="row">
+      <button id="btn-demo-prism">+ Demo Prism</button>
+      <button id="btn-demo-sphere">+ Demo Ball Lens</button>
+    </div>
+    <div id="object-list"></div>
+  </div>
+
+  <div class="section">
+    <h2>Selected Surface</h2>
+    <div id="face-panel" class="muted">Click a surface in the 3D view to select it.</div>
+    <div id="face-controls" hidden>
+      <div id="face-info" class="info"></div>
+      <label class="check"><input type="checkbox" id="face-fresnel" checked> Auto (Fresnel equations)</label>
+      <div class="slider-row" id="face-refl-row">
+        <span>Reflectivity</span>
+        <input type="range" id="face-refl" min="0" max="1" step="0.01" value="0.5">
+        <span id="face-refl-val" class="val">0.50</span>
+      </div>
+      <button id="btn-deselect">Deselect</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Point Light Source</h2>
+    <div class="xyz-row">
+      <label>X <input type="number" id="light-x" step="1" value="0"></label>
+      <label>Y <input type="number" id="light-y" step="1" value="0"></label>
+      <label>Z <input type="number" id="light-z" step="1" value="0"></label>
+    </div>
+    <label class="check"><input type="checkbox" id="light-gizmo" checked> Show drag gizmo</label>
+    <div class="slider-row">
+      <span>Wavelength</span>
+      <input type="range" id="wavelength" min="380" max="750" step="1" value="550">
+      <span class="val"><span id="wavelength-val">550</span> nm</span>
+    </div>
+    <div class="swatch-row">Ray color: <span id="wl-swatch"></span></div>
+    <div class="slider-row">
+      <span>Intensity</span>
+      <input type="range" id="intensity" min="0.05" max="4" step="0.05" value="1">
+      <span id="intensity-val" class="val">1.00</span>
+    </div>
+    <div class="slider-row">
+      <span>Ray count</span>
+      <input type="range" id="ray-count" min="0" max="100" step="1" value="55">
+      <span id="ray-count-val" class="val">500</span>
+    </div>
+    <div class="slider-row">
+      <span>Emission</span>
+      <select id="emission-mode">
+        <option value="sphere">Full sphere</option>
+        <option value="cone" selected>Cone (aimed at models)</option>
+      </select>
+    </div>
+    <div class="slider-row" id="cone-row">
+      <span>Cone angle</span>
+      <input type="range" id="cone-angle" min="1" max="90" step="1" value="20">
+      <span class="val"><span id="cone-angle-val">20</span>°</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Tracing</h2>
+    <div class="slider-row">
+      <span>Max bounces</span>
+      <input type="range" id="max-bounces" min="1" max="16" step="1" value="8">
+      <span id="max-bounces-val" class="val">8</span>
+    </div>
+    <div class="slider-row">
+      <span>Min intensity</span>
+      <input type="range" id="min-intensity" min="0.005" max="0.2" step="0.005" value="0.02">
+      <span id="min-intensity-val" class="val">0.020</span>
+    </div>
+    <label class="check"><input type="checkbox" id="auto-trace" checked> Auto re-trace on change</label>
+    <button id="btn-trace" class="primary">Trace Rays</button>
+    <div id="trace-stats" class="muted"></div>
+  </div>
+
+  <div class="section">
+    <h2>View</h2>
+    <div class="row">
+      <button id="btn-fit">Fit View</button>
+      <button id="btn-clear-rays">Clear Rays</button>
+    </div>
+    <label class="check"><input type="checkbox" id="show-grid" checked> Show grid</label>
+    <label class="check"><input type="checkbox" id="show-models" checked> Show models</label>
+    <div class="muted small">Left-drag: orbit · Right-drag: pan · Scroll: zoom · Click: select surface</div>
+  </div>
+</div>
+<div id="viewport"></div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
