@@ -5,12 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>StepRayOptics — STEP Ray Tracing Sandbox</title>
 <link rel="stylesheet" href="style.css">
-<script src="vendor/occt-import-js.js"></script>
 <script type="importmap">
 {
   "imports": {
-    "three": "./vendor/three.module.js",
-    "three-mesh-bvh": "./vendor/three-mesh-bvh.module.js"
+    "three": "./vendor/three.module.js"
   }
 }
 </script>
@@ -18,6 +16,8 @@
 <body>
 <div id="sidebar">
   <h1>StepRayOptics</h1>
+  <button id="btn-toggle-tracing" class="toggle-tracing off">Ray Tracing: OFF — click to start</button>
+  <div id="model-status" class="muted">No model loaded yet.</div>
 
   <div class="section">
     <h2>Models</h2>
@@ -29,92 +29,26 @@
       <button id="btn-demo-prism">+ Demo Prism</button>
       <button id="btn-demo-sphere">+ Demo Ball Lens</button>
     </div>
-    <div id="object-list"></div>
+    <div class="muted small">Every loaded solid becomes its own removable body below — B-rep analytic tracing throughout, same engine as InventorRayOptics.</div>
+  </div>
+
+  <div class="section">
+    <h2>Bodies</h2>
+    <div id="body-list" class="muted small">No model loaded yet.</div>
   </div>
 
   <div class="section">
     <h2>Selected Surface</h2>
     <div id="face-panel" class="muted">Click a surface in the 3D view to select it.</div>
-    <div id="face-controls" hidden>
-      <div id="face-info" class="info"></div>
-      <label class="check"><input type="checkbox" id="face-fresnel" checked> Auto (Fresnel equations)</label>
-      <div class="slider-row" id="face-refl-row">
-        <span>Reflectivity</span>
-        <input type="range" id="face-refl" min="0" max="1" step="0.01" value="0.5">
-        <span id="face-refl-val" class="val">0.50</span>
-      </div>
-      <button id="btn-deselect">Deselect</button>
-    </div>
+    <div id="face-controls" hidden></div>
   </div>
 
   <div class="section">
-    <h2>Point Light Source</h2>
-    <div class="xyz-row">
-      <label>X <input type="number" id="light-x" step="1" value="0"></label>
-      <label>Y <input type="number" id="light-y" step="1" value="0"></label>
-      <label>Z <input type="number" id="light-z" step="1" value="0"></label>
+    <h2>Light Sources</h2>
+    <div class="row">
+      <button id="btn-add-point-light" class="primary">+ Add Point Light</button>
     </div>
-    <label class="check"><input type="checkbox" id="light-gizmo" checked> Show drag gizmo</label>
-    <div class="slider-row">
-      <span>Light mode</span>
-      <select id="light-mode">
-        <option value="single" selected>Single wavelength</option>
-        <option value="spectrum">Spectrum (dispersion)</option>
-      </select>
-    </div>
-    <div id="single-wl-rows">
-      <div class="slider-row">
-        <span>Wavelength</span>
-        <input type="range" id="wavelength" min="380" max="750" step="1" value="550">
-        <span class="val"><span id="wavelength-val">550</span> nm</span>
-      </div>
-      <div class="swatch-row">Ray color: <span id="wl-swatch"></span></div>
-    </div>
-    <div id="spectrum-rows" hidden>
-      <div class="slider-row">
-        <span>Range (nm)</span>
-        <input type="number" id="spec-min" min="380" max="750" step="5" value="400" class="nm">
-        <span>–</span>
-        <input type="number" id="spec-max" min="380" max="750" step="5" value="700" class="nm">
-      </div>
-      <div class="slider-row">
-        <span>Samples</span>
-        <input type="range" id="spec-samples" min="2" max="24" step="1" value="10">
-        <span id="spec-samples-val" class="val">10</span>
-      </div>
-      <div class="swatch-row">Spectrum: <span id="spec-swatch"></span></div>
-    </div>
-    <div class="slider-row">
-      <span>Intensity</span>
-      <input type="range" id="intensity" min="0" max="4" step="0.05" value="0.05">
-      <input type="number" id="intensity-num" min="0" step="0.1" value="0.05" class="val-input" title="Type any value — the slider covers 0–4, but larger values are allowed">
-    </div>
-    <div class="slider-row">
-      <span>Ray count</span>
-      <input type="range" id="ray-count" min="0" max="100" step="1" value="55">
-      <span id="ray-count-val" class="val">500</span>
-    </div>
-    <div class="slider-row">
-      <span>Emission</span>
-      <select id="emission-mode">
-        <option value="sphere">Full sphere</option>
-        <option value="cone" selected>Cone (aimed at models)</option>
-        <option value="custom">Cone (custom aim)</option>
-      </select>
-    </div>
-    <div class="slider-row" id="cone-row">
-      <span>Cone angle</span>
-      <input type="range" id="cone-angle" min="1" max="90" step="1" value="20">
-      <span class="val"><span id="cone-angle-val">20</span>°</span>
-    </div>
-    <div id="aim-rows" hidden>
-      <div class="xyz-row">
-        <label>Aim X <input type="number" id="aim-x" step="1" value="0"></label>
-        <label>Aim Y <input type="number" id="aim-y" step="1" value="0"></label>
-        <label>Aim Z <input type="number" id="aim-z" step="1" value="0"></label>
-      </div>
-      <label class="check"><input type="checkbox" id="aim-gizmo" checked> Show aim gizmo</label>
-    </div>
+    <div id="light-list" class="muted small">No light sources yet.</div>
   </div>
 
   <div class="section">
@@ -139,6 +73,21 @@
   </div>
 
   <div class="section">
+    <h2>My Materials</h2>
+    <div class="muted small">Save a body's material with the "☆ Save to my materials" button below its dropdown — saved materials then show up in every body's dropdown, persisted in this browser (localStorage).</div>
+  </div>
+
+  <div class="section">
+    <h2>Settings</h2>
+    <div class="row">
+      <button id="btn-save-settings">Save Settings</button>
+      <button id="btn-load-settings">Load Settings</button>
+      <input type="file" id="settings-file-input" accept=".json" hidden>
+    </div>
+    <div class="muted small">Save downloads a JSON file with every body/surface/light setting; Load restores from one.</div>
+  </div>
+
+  <div class="section">
     <h2>View</h2>
     <div class="row">
       <button id="btn-fit">Fit View</button>
@@ -147,6 +96,8 @@
     <label class="check"><input type="checkbox" id="show-grid" checked> Show grid</label>
     <label class="check"><input type="checkbox" id="show-models" checked> Show models</label>
     <label class="check"><input type="checkbox" id="show-widgets" checked> Show control widgets</label>
+    <label class="check"><input type="checkbox" id="show-rays" checked> Show rays</label>
+    <label class="check"><input type="checkbox" id="show-maps" checked> Show maps</label>
     <div class="muted small">Left-drag: orbit · Right-drag: pan · Scroll: zoom · Click: select surface</div>
   </div>
 </div>
